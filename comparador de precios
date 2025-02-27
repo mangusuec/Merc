@@ -1,0 +1,54 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+
+def obtener_precios(url, selector_producto, selector_precio):
+    """
+    Extrae los productos y precios de un supermercado en línea.
+    """
+    headers = {"User-Agent": "Mozilla/5.0"}
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        print(f"Error al acceder a {url}")
+        return []
+    
+    soup = BeautifulSoup(response.text, 'html.parser')
+    productos = soup.select(selector_producto)
+    precios = soup.select(selector_precio)
+    
+    lista_productos = []
+    for prod, price in zip(productos, precios):
+        lista_productos.append({
+            "Producto": prod.text.strip(),
+            "Precio": float(price.text.replace('$', '').replace(',', '').strip()),
+            "Supermercado": url
+        })
+    return lista_productos
+
+# Definir supermercados y sus selectores
+supermercados = {
+    "Tienda1": {
+        "url": "https://www.supermercado1.com/alimentos",
+        "selector_producto": "div.nombre_producto",
+        "selector_precio": "span.precio"
+    },
+    "Tienda2": {
+        "url": "https://www.supermercado2.com/comida",
+        "selector_producto": "h2.titulo",
+        "selector_precio": "p.valor"
+    }
+}
+
+# Obtener datos de todas las tiendas
+lista_total = []
+for tienda, info in supermercados.items():
+    productos = obtener_precios(info["url"], info["selector_producto"], info["selector_precio"])
+    lista_total.extend(productos)
+
+# Convertir a DataFrame y encontrar el mejor precio por producto
+df = pd.DataFrame(lista_total)
+mejor_precio = df.loc[df.groupby("Producto")["Precio"].idxmin()]
+
+# Guardar en un archivo Excel
+mejor_precio.to_excel("mejor_precio_mercado.xlsx", index=False)
+print("Archivo generado: mejor_precio_mercado.xlsx")
